@@ -149,8 +149,8 @@ Remember, this is just a basic structure, and you can adapt it to your project's
 
 After you have created the flutter project floder Replace the main.dart file with the download one in the lib directory
 
-Now you can run the flutter code by tpying 
-Bash
+Now you can run the flutter code by typing
+
 
   Flutter run
   
