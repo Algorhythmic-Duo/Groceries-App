@@ -1,9 +1,5 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:demoapp/database/datacode.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,15 +16,18 @@ class SqliteApp extends StatefulWidget {
 class _SqliteAppState extends State<SqliteApp> {
   final textController = TextEditingController();
   final searchController = TextEditingController();
-  bool isSearching = false;
+  bool isSearching = true;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
-          title: Text(isSearching ? 'Search Groceries' : 'Add Grocery'),
-          backgroundColor: Colors.blueAccent,
+          title: Text(
+            isSearching ? 'Search Groceries' : 'Add Grocery',
+            style: TextStyle(color: Colors.white),
+          ),
+          backgroundColor: const Color.fromARGB(255, 0, 0, 0),
         ),
         body: Center(
           child: Column(
@@ -36,6 +35,8 @@ class _SqliteAppState extends State<SqliteApp> {
               if (isSearching)
                 TextField(
                   controller: searchController,
+                  style:
+                      TextStyle(color: const Color.fromARGB(255, 7, 32, 255)),
                   decoration: InputDecoration(
                     labelText: 'Search groceries',
                     hintText: 'Enter a keyword',
@@ -69,6 +70,18 @@ class _SqliteAppState extends State<SqliteApp> {
                         }
                       },
                     ),
+                    IconButton(
+                      icon: Icon(Icons.delete),
+                      onPressed: () async {
+                        final enteredText = textController.text.trim();
+                        if (enteredText.isNotEmpty) {
+                          await DatabaseHelper.instance.remove(enteredText);
+                          setState(() {
+                            textController.clear();
+                          });
+                        }
+                      },
+                    ),
                   ],
                 ),
               Expanded(
@@ -85,23 +98,18 @@ class _SqliteAppState extends State<SqliteApp> {
                       );
                     }
                     return snapshot.data!.isEmpty
-                        ? const Center(child: Text('No grocery items found.'))
+                        ? const Center(
+                            child: Text('No  items found in the database.'))
                         : ListView.builder(
                             itemCount: snapshot.data!.length,
                             itemBuilder: (context, index) {
                               final grocery = snapshot.data![index];
                               return Center(
                                 child: ListTile(
-                                  onLongPress: () async {
-                                    try {
-                                      await DatabaseHelper.instance
-                                          .remove(grocery.id!);
-                                      setState(() {});
-                                    } catch (error) {
-                                      print("Error removing grocery: $error");
-                                    }
-                                  },
-                                  title: Text(grocery.name),
+                                  title: Text(grocery.name,
+                                      style: TextStyle(
+                                          color: Color.fromARGB(255, 0, 0, 0),
+                                          fontSize: 20.0)),
                                 ),
                               );
                             },
@@ -112,6 +120,7 @@ class _SqliteAppState extends State<SqliteApp> {
             ],
           ),
         ),
+        backgroundColor: Color.fromARGB(255, 255, 255, 255),
         floatingActionButton: FloatingActionButton(
           child: Icon(isSearching ? Icons.add : Icons.search),
           onPressed: () {
@@ -126,79 +135,5 @@ class _SqliteAppState extends State<SqliteApp> {
         ),
       ),
     );
-  }
-}
-
-class Grocery {
-  final int? id;
-  final String name;
-
-  Grocery({this.id, required this.name});
-
-  factory Grocery.fromMap(Map<String, dynamic> json) => Grocery(
-        id: json['id'],
-        name: json['name'],
-      );
-
-  Map<String, dynamic> toMap() => {
-        'id': id,
-        'name': name,
-      };
-}
-
-class DatabaseHelper {
-  DatabaseHelper._privateConstructor();
-  static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
-
-  static Database? _database;
-
-  Future<Database> get database async {
-    if (_database == null) {
-      _database = await _initDatabase();
-    }
-    return _database!;
-  }
-
-  Future<Database> _initDatabase() async {
-    Directory documentsDirectory = await getApplicationDocumentsDirectory();
-    String path = join(documentsDirectory.path, 'groceries.db');
-    return await openDatabase(
-      path,
-      version: 1,
-      onCreate: (db, version) async => await db.execute('''
-        CREATE TABLE groceries (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL
-        )
-      '''),
-    );
-  }
-
-  Future<List<Grocery>> getGroceries(String searchQuery) async {
-    final db = await database;
-    try {
-      final groceries = await db.query('groceries',
-          where: searchQuery.isNotEmpty ? 'name LIKE ?' : null,
-          whereArgs: searchQuery.isNotEmpty ? ['%$searchQuery%'] : null,
-          orderBy: 'name');
-      return groceries.map((g) => Grocery.fromMap(g)).toList();
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  Future<int> addGrocery(Grocery grocery) async {
-    final db = await database;
-    return await db.insert('groceries', grocery.toMap());
-  }
-
-  Future<int> remove(int id) async {
-    Database db = await instance.database;
-    return await db.delete('groceries', where: 'id = ?', whereArgs: [id]);
-  }
-
-  Future<void> close() async {
-    final db = await instance.database;
-    await db.close();
   }
 }
